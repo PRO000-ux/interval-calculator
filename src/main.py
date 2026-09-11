@@ -85,11 +85,9 @@ def compute_view_range(*ivs):
 
 def render_number_lines(A, B, result_iv, result_label):
     vmin, vmax = compute_view_range(A, B)
-
     fig, axes = plt.subplots(3, 1, figsize=(6.4, 6.0), dpi=110,
                              gridspec_kw={"hspace": 1.0})
     fig.patch.set_facecolor("#ffffff")
-
     configs = [
         (axes[0], A, "#2563eb", "A"),
         (axes[1], B, "#db2777", "B"),
@@ -97,7 +95,6 @@ def render_number_lines(A, B, result_iv, result_label):
     ]
     for ax, iv, color, label in configs:
         _draw_axis(ax, iv, color, label, vmin, vmax)
-
     fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", facecolor="#ffffff")
@@ -200,10 +197,8 @@ def _draw_axis(ax, iv, color, label, vmin, vmax):
         pe = vmax if en == oo else float(en)
         ps_draw = max(ps, vmin)
         pe_draw = min(pe, vmax)
-
         ax.plot([ps_draw, pe_draw], [0, 0], color=color,
                 linewidth=6, zorder=2, solid_capstyle="round")
-
         if st != -oo and vmin < float(st) < vmax:
             ax.plot(float(st), 0, marker="o",
                     markerfacecolor=("white" if piece.left_open else color),
@@ -214,7 +209,6 @@ def _draw_axis(ax, iv, color, label, vmin, vmax):
                     markerfacecolor=("white" if piece.right_open else color),
                     markeredgecolor=color, markeredgewidth=2,
                     markersize=9, zorder=5)
-
         mids.append((ps_draw + pe_draw) / 2)
 
     if mids:
@@ -224,199 +218,146 @@ def _draw_axis(ax, iv, color, label, vmin, vmax):
                 fontdict={"weight": "bold", "size": 12}, zorder=5)
 
 
-def main(page: ft.Page):
+def main(page):
+    # ---- ultra-minimal Flet API only. No enums, no renamed functions. ----
     page.title = "Interval Analyzer & Plotter"
-    page.theme_mode = ft.ThemeMode.LIGHT
-    page.scroll = ft.ScrollMode.AUTO
-    page.padding = 20
     page.bgcolor = "#f8f9fa"
-    page.window_width = 700
-    page.window_height = 1000
 
     U = S.Reals
 
-    def make_interval_input(name, d_s, d_e, d_l, d_r):
-        start_field = ft.TextField(label="Start", value=d_s, width=110)
-        end_field = ft.TextField(label="End", value=d_e, width=110)
-        left_dd = ft.Dropdown(
-            value=d_l, width=160,
-            options=[ft.dropdown.Option("Closed ( [ )"),
-                     ft.dropdown.Option("Open ( ] )")])
-        right_dd = ft.Dropdown(
-            value=d_r, width=160,
-            options=[ft.dropdown.Option("Open ( [ )"),
-                     ft.dropdown.Option("Closed ( ] )")])
+    # ---- build one interval input block ----
+    def make_input(name, d_s, d_e, d_l, d_r):
+        se = ft.TextField(label="Start", value=d_s, width=120)
+        ee = ft.TextField(label="End", value=d_e, width=120)
+        lo = ft.Dropdown(value=d_l, width=170,
+                         options=[ft.dropdown.Option("Closed ( [ )"),
+                                  ft.dropdown.Option("Open ( ] )")])
+        ro = ft.Dropdown(value=d_r, width=170,
+                         options=[ft.dropdown.Option("Open ( [ )"),
+                                  ft.dropdown.Option("Closed ( ] )")])
 
-        row1 = ft.Row([
-            ft.Text("Left Bound:", width=80),
-            left_dd,
-            ft.Text("Start:", width=50),
-            start_field,
-        ], spacing=8)
+        r1 = ft.Row([ft.Text("Left Bound:"), lo,
+                     ft.Text("Start:"), se], spacing=8)
+        r2 = ft.Row([ft.Text("End:"), ee,
+                     ft.Text("Right Bound:"), ro], spacing=8)
 
-        row2 = ft.Row([
-            ft.Text("End:", width=80),
-            end_field,
-            ft.Text("Right Bound:", width=95),
-            right_dd,
-        ], spacing=8)
-
-        box = ft.Container(
-            content=ft.Column([row1, row2], spacing=6),
-            padding=12,
-            bgcolor="#e2e8f0",
-            border_radius=8,
-        )
-        header = ft.Text(f"Interval {name}",
-                         weight=ft.FontWeight.BOLD, size=14)
+        inner = ft.Container(content=ft.Column([r1, r2], spacing=6),
+                             padding=12, bgcolor="#e2e8f0")
         return {
-            "start": start_field, "end": end_field,
-            "left_open": left_dd, "right_open": right_dd,
-            "container": ft.Column([header, box], spacing=2),
+            "start": se, "end": ee,
+            "left_open": lo, "right_open": ro,
+            "block": ft.Column([ft.Text(f"Interval {name}", size=14),
+                                inner], spacing=2),
         }
 
-    A_inputs = make_interval_input("A", "-2", "inf",
-                                   "Closed ( [ )", "Open ( [ )")
-    B_inputs = make_interval_input("B", "-inf", "3",
-                                   "Open ( ] )", "Closed ( ] )")
+    A_in = make_input("A", "-2", "inf", "Closed ( [ )", "Open ( [ )")
+    B_in = make_input("B", "-inf", "3", "Open ( ] )", "Closed ( ] )")
 
+    # ---- graph choice ----
     graph_dd = ft.Dropdown(
-        label="Highlight Graph",
-        value="Intersection (A ∩ B)",
-        width=280,
+        value="Intersection (A ∩ B)", width=280,
         options=[ft.dropdown.Option("Intersection (A ∩ B)"),
                  ft.dropdown.Option("Union (A ∪ B)"),
                  ft.dropdown.Option("Difference (A - B)"),
                  ft.dropdown.Option("Difference (B - A)")])
 
-    result_refs = {}
-    result_rows = []
-    op_list = [
+    # ---- results ----
+    labels = {}
+    rows = []
+    for key, title in [
         ("union", "Union (A ∪ B):"),
         ("intersection", "Intersection (A ∩ B):"),
         ("a_minus_b", "Difference (A - B):"),
         ("b_minus_a", "Difference (B - A):"),
         ("a_dash", "Complement (A'):"),
         ("b_dash", "Complement (B'):"),
-    ]
-    for key, title in op_list:
-        value_label = ft.Text("", color="#059669",
-                              weight=ft.FontWeight.BOLD, selectable=True)
-        result_refs[key] = value_label
-        result_rows.append(
-            ft.Row([
-                ft.Text(title, width=180, weight=ft.FontWeight.BOLD,
-                        color="#475569"),
-                value_label,
-            ], spacing=8)
-        )
+    ]:
+        v = ft.Text("", color="#059669", selectable=True)
+        labels[key] = v
+        rows.append(ft.Row([ft.Text(title, width=200), v], spacing=8))
 
-    results_box = ft.Container(
-        content=ft.Column(result_rows, spacing=4),
-        padding=12,
-        bgcolor="#e2e8f0",
-        border_radius=8,
-    )
+    results_box = ft.Container(content=ft.Column(rows, spacing=4),
+                               padding=12, bgcolor="#e2e8f0")
 
+    # ---- plot image ----
     plot_image = ft.Image(src=base64.b64encode(b"").decode(),
-                          width=640, height=600, fit=ft.ImageFit.CONTAIN)
+                          width=640, height=600)
+    plot_box = ft.Container(content=plot_image, padding=10, bgcolor="#e2e8f0")
 
-    plot_box = ft.Container(
-        content=plot_image,
-        padding=10,
-        bgcolor="#e2e8f0",
-        border_radius=8,
-    )
-
-    def build_interval(inputs):
-        v1 = parse_bound(inputs["start"].value)
-        v2 = parse_bound(inputs["end"].value)
-        lo = "Open" in inputs["left_open"].value
-        ro = "Open" in inputs["right_open"].value
-
+    # ---- helpers ----
+    def build_interval(ip):
+        v1 = parse_bound(ip["start"].value)
+        v2 = parse_bound(ip["end"].value)
+        lo = "Open" in ip["left_open"].value
+        ro = "Open" in ip["right_open"].value
         if v1 != -oo and v2 != -oo and v1 != oo and v2 != oo and v1 > v2:
             v1, v2 = v2, v1
             lo, ro = ro, lo
-
         if v1 == -oo:
             lo = True
         if v2 == oo:
             ro = True
-
         return Interval(v1, v2, left_open=lo, right_open=ro)
 
-    def calculate(e=None):
+    def calculate(e):
         try:
-            A = build_interval(A_inputs)
-            B = build_interval(B_inputs)
+            A = build_interval(A_in)
+            B = build_interval(B_in)
         except Exception as ex:
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"Input Error: {ex}"), bgcolor="#ef4444")
+            page.snack_bar = ft.SnackBar(ft.Text(f"Input Error: {ex}"))
             page.snack_bar.open = True
             page.update()
             return
 
         ops = {
-            "union":        A.union(B),
+            "union": A.union(B),
             "intersection": A.intersect(B),
-            "a_minus_b":    A - B,
-            "b_minus_a":    B - A,
-            "a_dash":       U - A,
-            "b_dash":       U - B,
+            "a_minus_b": A - B,
+            "b_minus_a": B - A,
+            "a_dash": U - A,
+            "b_dash": U - B,
         }
         for k, res in ops.items():
-            result_refs[k].value = format_interval(res)
+            labels[k].value = format_interval(res)
 
         gc = graph_dd.value
         if "Union" in gc:
-            result_iv, result_label = ops["union"], "A ∪ B"
+            r_iv, r_lbl = ops["union"], "A ∪ B"
         elif "Intersection" in gc:
-            result_iv, result_label = ops["intersection"], "A ∩ B"
+            r_iv, r_lbl = ops["intersection"], "A ∩ B"
         elif "A - B" in gc:
-            result_iv, result_label = ops["a_minus_b"], "A - B"
+            r_iv, r_lbl = ops["a_minus_b"], "A - B"
         else:
-            result_iv, result_label = ops["b_minus_a"], "B - A"
+            r_iv, r_lbl = ops["b_minus_a"], "B - A"
 
-        png = render_number_lines(A, B, result_iv, result_label)
+        png = render_number_lines(A, B, r_iv, r_lbl)
         plot_image.src_base64 = base64.b64encode(png).decode()
         page.update()
 
-    def clear_all(e=None):
-        for ip in (A_inputs, B_inputs):
+    def clear_all(e):
+        for ip in (A_in, B_in):
             ip["start"].value = ""
             ip["end"].value = ""
-        for lbl in result_refs.values():
+        for lbl in labels.values():
             lbl.value = ""
         plot_image.src_base64 = ""
         page.update()
 
-    header = ft.Text("Interval Analyzer & Plotter",
-                     size=26, weight=ft.FontWeight.BOLD, color="#1e293b")
+    # ---- assemble page ----
+    page.add(ft.Text("Interval Analyzer & Plotter", size=24))
+    page.add(A_in["block"])
+    page.add(B_in["block"])
+    page.add(ft.Row([graph_dd], spacing=8))
+    page.add(ft.Row([
+        ft.ElevatedButton("Analyze & Plot", on_click=calculate,
+                          bgcolor="#2563eb", color="white"),
+        ft.ElevatedButton("Clear All", on_click=clear_all,
+                          bgcolor="#ef4444", color="white"),
+    ], spacing=20))
+    page.add(results_box)
+    page.add(plot_box)
 
-    button_row = ft.Row([
-        ft.ElevatedButton(
-            "Analyze & Plot",
-            on_click=calculate,
-            bgcolor="#2563eb", color="white"),
-        ft.ElevatedButton(
-            "Clear All",
-            on_click=clear_all,
-            bgcolor="#ef4444", color="white"),
-    ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
-
-    page.add(
-        ft.Row([header], alignment=ft.MainAxisAlignment.CENTER),
-        ft.Container(height=6),
-        A_inputs["container"],
-        B_inputs["container"],
-        ft.Row([graph_dd], alignment=ft.MainAxisAlignment.CENTER),
-        ft.Container(height=6),
-        button_row,
-        results_box,
-        plot_box,
-    )
-
-    calculate()
+    calculate(None)
 
 
 if __name__ == "__main__":
