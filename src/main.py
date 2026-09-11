@@ -8,26 +8,18 @@ import matplotlib.pyplot as plt
 from sympy import Interval, S, oo, FiniteSet, EmptySet, Union
 
 
-# ----------------------------------------------------------------------
-#  European-style interval notation:
-#     open-left  = ']'      open-right  = '['
-#     closed-left = '['     closed-right = ']'
-# ----------------------------------------------------------------------
 def format_interval(iv):
     if iv == S.EmptySet or iv == EmptySet:
         return "∅"
-
     if isinstance(iv, FiniteSet):
         vals = sorted(iv.args, key=lambda p: float(p))
         return "{" + ", ".join(str(v) for v in vals) + "}"
-
     if isinstance(iv, Interval):
         lb = "-∞" if iv.start == -oo else str(iv.start)
         rb = "+∞" if iv.end == oo else str(iv.end)
         left = "]" if iv.left_open else "["
         right = "[" if iv.right_open else "]"
         return f"{left}{lb}, {rb}{right}"
-
     if isinstance(iv, Union):
         def _sort_key(p):
             if hasattr(p, "start") and p.start != -oo:
@@ -35,7 +27,6 @@ def format_interval(iv):
             return float("-inf")
         parts = sorted(iv.args, key=_sort_key)
         return " ∪ ".join(format_interval(p) for p in parts)
-
     return str(iv)
 
 
@@ -92,9 +83,6 @@ def compute_view_range(*ivs):
     return lo - pad, hi + pad
 
 
-# ----------------------------------------------------------------------
-#  Matplotlib rendering
-# ----------------------------------------------------------------------
 def render_number_lines(A, B, result_iv, result_label):
     vmin, vmax = compute_view_range(A, B)
 
@@ -236,9 +224,6 @@ def _draw_axis(ax, iv, color, label, vmin, vmax):
                 fontdict={"weight": "bold", "size": 12}, zorder=5)
 
 
-# ----------------------------------------------------------------------
-#  Flet GUI
-# ----------------------------------------------------------------------
 def main(page: ft.Page):
     page.title = "Interval Analyzer & Plotter"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -251,16 +236,14 @@ def main(page: ft.Page):
     U = S.Reals
 
     def make_interval_input(name, d_s, d_e, d_l, d_r):
-        start_field = ft.TextField(label="Start", value=d_s, width=110,
-                                   dense=True)
-        end_field = ft.TextField(label="End", value=d_e, width=110,
-                                 dense=True)
+        start_field = ft.TextField(label="Start", value=d_s, width=110)
+        end_field = ft.TextField(label="End", value=d_e, width=110)
         left_dd = ft.Dropdown(
-            value=d_l, width=160, dense=True,
+            value=d_l, width=160,
             options=[ft.dropdown.Option("Closed ( [ )"),
                      ft.dropdown.Option("Open ( ] )")])
         right_dd = ft.Dropdown(
-            value=d_r, width=160, dense=True,
+            value=d_r, width=160,
             options=[ft.dropdown.Option("Open ( [ )"),
                      ft.dropdown.Option("Closed ( ] )")])
 
@@ -269,27 +252,20 @@ def main(page: ft.Page):
             left_dd,
             ft.Text("Start:", width=50),
             start_field,
-        ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        ], spacing=8)
 
         row2 = ft.Row([
             ft.Text("End:", width=80),
             end_field,
             ft.Text("Right Bound:", width=95),
             right_dd,
-        ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        ], spacing=8)
 
         box = ft.Container(
             content=ft.Column([row1, row2], spacing=6),
             padding=12,
-            border=ft.Border(
-                top=ft.BorderSide(1, "#cbd5e1"),
-                bottom=ft.BorderSide(1, "#cbd5e1"),
-                left=ft.BorderSide(1, "#cbd5e1"),
-                right=ft.BorderSide(1, "#cbd5e1"),
-            ),
+            bgcolor="#e2e8f0",
             border_radius=8,
-            bgcolor="#ffffff",
-            margin=ft.margin.only(bottom=8),
         )
         header = ft.Text(f"Interval {name}",
                          weight=ft.FontWeight.BOLD, size=14)
@@ -338,15 +314,8 @@ def main(page: ft.Page):
     results_box = ft.Container(
         content=ft.Column(result_rows, spacing=4),
         padding=12,
-        border=ft.Border(
-            top=ft.BorderSide(1, "#cbd5e1"),
-            bottom=ft.BorderSide(1, "#cbd5e1"),
-            left=ft.BorderSide(1, "#cbd5e1"),
-            right=ft.BorderSide(1, "#cbd5e1"),
-        ),
+        bgcolor="#e2e8f0",
         border_radius=8,
-        bgcolor="#ffffff",
-        margin=ft.margin.symmetric(vertical=6),
     )
 
     plot_image = ft.Image(src=base64.b64encode(b"").decode(),
@@ -355,15 +324,8 @@ def main(page: ft.Page):
     plot_box = ft.Container(
         content=plot_image,
         padding=10,
-        border=ft.Border(
-            top=ft.BorderSide(1, "#cbd5e1"),
-            bottom=ft.BorderSide(1, "#cbd5e1"),
-            left=ft.BorderSide(1, "#cbd5e1"),
-            right=ft.BorderSide(1, "#cbd5e1"),
-        ),
+        bgcolor="#e2e8f0",
         border_radius=8,
-        bgcolor="#ffffff",
-        alignment=ft.alignment.center,
     )
 
     def build_interval(inputs):
@@ -435,13 +397,11 @@ def main(page: ft.Page):
         ft.ElevatedButton(
             "Analyze & Plot",
             on_click=calculate,
-            bgcolor="#2563eb", color="white",
-            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6))),
+            bgcolor="#2563eb", color="white"),
         ft.ElevatedButton(
             "Clear All",
             on_click=clear_all,
-            bgcolor="#ef4444", color="white",
-            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6))),
+            bgcolor="#ef4444", color="white"),
     ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
 
     page.add(
