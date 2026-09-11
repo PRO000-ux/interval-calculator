@@ -4,8 +4,16 @@ version = "1.0.0"
 description = "Interval Analyzer & Plotter"
 requires-python = ">=3.9"
 dependencies = [
-    "flet==0.24.1",
-    "watchdog>=4.0.0,<5.0.0",
+    "flet",
     "sympy",
     "matplotlib",
 ]
+
+[tool.flet]
+product = "Interval Calculator"
+org = "com.proo0"
+bundle_id = "com.proo0.intervalcalculator"
+build_number = 4
+
+[tool.flet.android]
+extract_packages = ["matplotlib"]
