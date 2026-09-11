@@ -1,0 +1,13 @@
+[project]
+name = "interval-calculator"
+version = "1.0.0"
+description = "Interval Analyzer & Plotter"
+
+[tool.flet]
+product = "Interval Calculator"
+org = "com.yourname"
+bundle_id = "com.yourname.intervalcalculator"
+build_number = 1
+
+[tool.flet.android]
+extract_packages = ["matplotlib"]
