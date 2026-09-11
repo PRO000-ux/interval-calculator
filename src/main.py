@@ -3,15 +3,15 @@ import math
 import io
 import base64
 import matplotlib
-matplotlib.use("Agg")          # headless backend — required for Flet
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sympy import Interval, S, oo, FiniteSet, EmptySet, Union
 
 
 # ----------------------------------------------------------------------
-#  Helper: format a SymPy set as European-style interval notation
-#     open-left = ']'   open-right = '['
-#     closed-left = '[' closed-right = ']'
+#  European-style interval notation:
+#     open-left  = ']'      open-right  = '['
+#     closed-left = '['     closed-right = ']'
 # ----------------------------------------------------------------------
 def format_interval(iv):
     if iv == S.EmptySet or iv == EmptySet:
@@ -93,7 +93,7 @@ def compute_view_range(*ivs):
 
 
 # ----------------------------------------------------------------------
-#  Matplotlib rendering — returns PNG bytes
+#  Matplotlib rendering
 # ----------------------------------------------------------------------
 def render_number_lines(A, B, result_iv, result_label):
     vmin, vmax = compute_view_range(A, B)
@@ -250,7 +250,6 @@ def main(page: ft.Page):
 
     U = S.Reals
 
-    # -------- Input helper --------
     def make_interval_input(name, d_s, d_e, d_l, d_r):
         start_field = ft.TextField(label="Start", value=d_s, width=110,
                                    dense=True)
@@ -282,7 +281,12 @@ def main(page: ft.Page):
         box = ft.Container(
             content=ft.Column([row1, row2], spacing=6),
             padding=12,
-            border=ft.border.all(1, "#cbd5e1"),
+            border=ft.Border(
+                top=ft.BorderSide(1, "#cbd5e1"),
+                bottom=ft.BorderSide(1, "#cbd5e1"),
+                left=ft.BorderSide(1, "#cbd5e1"),
+                right=ft.BorderSide(1, "#cbd5e1"),
+            ),
             border_radius=8,
             bgcolor="#ffffff",
             margin=ft.margin.only(bottom=8),
@@ -296,9 +300,9 @@ def main(page: ft.Page):
         }
 
     A_inputs = make_interval_input("A", "-2", "inf",
-                                   "Closed ( [ )", "Open ( ] )")
+                                   "Closed ( [ )", "Open ( [ )")
     B_inputs = make_interval_input("B", "-inf", "3",
-                                   "Open ( ] )", "Closed ( [ )")
+                                   "Open ( ] )", "Closed ( ] )")
 
     graph_dd = ft.Dropdown(
         label="Highlight Graph",
@@ -309,7 +313,6 @@ def main(page: ft.Page):
                  ft.dropdown.Option("Difference (A - B)"),
                  ft.dropdown.Option("Difference (B - A)")])
 
-    # -------- Result labels --------
     result_refs = {}
     result_rows = []
     op_list = [
@@ -335,26 +338,34 @@ def main(page: ft.Page):
     results_box = ft.Container(
         content=ft.Column(result_rows, spacing=4),
         padding=12,
-        border=ft.border.all(1, "#cbd5e1"),
+        border=ft.Border(
+            top=ft.BorderSide(1, "#cbd5e1"),
+            bottom=ft.BorderSide(1, "#cbd5e1"),
+            left=ft.BorderSide(1, "#cbd5e1"),
+            right=ft.BorderSide(1, "#cbd5e1"),
+        ),
         border_radius=8,
         bgcolor="#ffffff",
         margin=ft.margin.symmetric(vertical=6),
     )
 
-    # -------- Plot image --------
     plot_image = ft.Image(src=base64.b64encode(b"").decode(),
                           width=640, height=600, fit=ft.ImageFit.CONTAIN)
 
     plot_box = ft.Container(
         content=plot_image,
         padding=10,
-        border=ft.border.all(1, "#cbd5e1"),
+        border=ft.Border(
+            top=ft.BorderSide(1, "#cbd5e1"),
+            bottom=ft.BorderSide(1, "#cbd5e1"),
+            left=ft.BorderSide(1, "#cbd5e1"),
+            right=ft.BorderSide(1, "#cbd5e1"),
+        ),
         border_radius=8,
         bgcolor="#ffffff",
         alignment=ft.alignment.center,
     )
 
-    # -------- Build interval from dropdowns --------
     def build_interval(inputs):
         v1 = parse_bound(inputs["start"].value)
         v2 = parse_bound(inputs["end"].value)
@@ -372,7 +383,6 @@ def main(page: ft.Page):
 
         return Interval(v1, v2, left_open=lo, right_open=ro)
 
-    # -------- Calculate --------
     def calculate(e=None):
         try:
             A = build_interval(A_inputs)
@@ -418,7 +428,6 @@ def main(page: ft.Page):
         plot_image.src_base64 = ""
         page.update()
 
-    # -------- Layout --------
     header = ft.Text("Interval Analyzer & Plotter",
                      size=26, weight=ft.FontWeight.BOLD, color="#1e293b")
 
@@ -447,7 +456,6 @@ def main(page: ft.Page):
         plot_box,
     )
 
-    # Initial draw
     calculate()
 
 
